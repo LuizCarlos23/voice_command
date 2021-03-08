@@ -5,7 +5,8 @@ from selenium.webdriver.firefox.options import Options
 from bs4 import BeautifulSoup as bs
 import time
 
-url = "https://www.cptec.inpe.br/previsao-tempo/ce/fortaleza"
+# url = "https://www.cptec.inpe.br/previsao-tempo/ce/fortaleza"
+url = "https://www.msn.com/pt-br/clima"
 option = Options()
 option.headless = True
 def get_temperature():
@@ -13,16 +14,12 @@ def get_temperature():
     driver.get(url)
     time.sleep(2)
     try:
-        element = driver.find_element_by_css_selector("div.temperaturas")
+        element = driver.find_element_by_css_selector("span.temperature-DS-EntryPoint1-1")
         html_content = element.get_attribute('outerHTML')
         soup = bs(html_content, 'html.parser')
-        html_span = soup.find_all(name='span')
-        temperaturas = []
-        for span in html_span:
-            temperaturas.append(span.contents[0][:2])
-        temperaturas = {"min": temperaturas[0], "max": temperaturas[1]}
+        temperatura = soup.text[:2]
         driver.close()
-        return temperaturas
+        return temperatura
     except Exception as e:
         driver.close()
         return None
