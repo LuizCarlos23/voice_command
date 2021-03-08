@@ -22,8 +22,8 @@ def search_for_command(string):
             youtube_search(string[10:])
         if (firt_word == "temperatura"):
             create_voice("Buscando")
-            temperaturas = get_temperature()
-            text = f"Mínima de {temperaturas['min']} graus celsius, e máxima de {temperaturas['max']} graus"
+            temperature = get_temperature()
+            text = f"Está fazendo {temperature} graus celsius"
             create_voice(text)
 
 def ouvir_microfone():
