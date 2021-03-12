@@ -1,6 +1,5 @@
 import os
 import keyboard
-# from pynput import keyboard
 import time
 import _thread
 import json
