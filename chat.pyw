@@ -11,125 +11,117 @@ from gtts import gTTS
 from playsound  import playsound
 import webbrowser
 
-
 from clima import fetch_current_temperature
 
-
-commands = ["pesquisar no youtube", "temperatura de hoje", "pesquisar no google", "executar"]
 confirmation_text = ["Ok", "Beleza", "Certo", "Um instante"]
 number_of_process = 0
 
 logging.basicConfig(filename='bot.log', format='%(levelname)s: %(message)s', filemode='w', level=logging.DEBUG)
 
-def youtube_search(query):
-    webbrowser.open("https://www.youtube.com/results?search_query="+query , new=0, autoraise=True)
-    
-def google_search(query):
-    webbrowser.open("https://www.google.com/search?q="+query, new=0, autoraise=True)
-    
-def run_program(program_name):
-    with open('executable_programs.json', 'r') as json_file:
-        data = json.load(json_file)
+class string_separate:
+    def __init__(self, string):
+        string = string.lower()
+        self.command = self.command_search(string)
+        self.query = self.query_format(string, self.command)
         
-    if (not program_name in data):
-        return None
+    def command_search(self, string):
+        commands = ["pesquisar no youtube", 
+                    "temperatura de hoje", 
+                    "pesquisar no google", 
+                    "executar"]
     
-    program_path = data[program_name][0]
-    executable_name = data[program_name][1]
-    
-    if (program_path == "shell"):
-        logging.info("start %s", executable_name)
-        os.system("start "+executable_name)
+        command = None
+        for item in commands:
+            if (string.startswith(item)):
+                command = item
+                break
+            
+        return command
         
-    logging.info('cd %s && start %s', program_path, executable_name)
-    os.system(f'cd "{program_path}" && start {executable_name}')
-    os.system("cd " + os.getcwd())
     
-    return "Okay"
+    def query_format(self, string, split_point = ""):
+        query = string.replace(split_point, "")
+        query = query.strip()
+        logging.info("Query: %s", query)
+        
+        return query
+    
+class command_functions:
+    def __init__(self, command, query = None):
+        commands = { "pesquisar no youtube": self.youtube_search, 
+                    "temperatura de hoje": self.get_temperature, 
+                    "pesquisar no google": self.google_search, 
+                    "executar": self.run_program}
+        self.query = query
+        
+        chose_function = commands.get(command, None)
+        if (not chose_function): self.error_function("chose_function")
+        else: chose_function()
+        
+    def error_function(self, where, message = None, error = None):
+        create_voice("Ocorreu um erro")
+        logging.erro("Ocorreu um erro em: %s", where)
+        if (message): logging.debug("%s", message)
+        if (error): logging.debug("%s", error)
+        
+    def youtube_search(self):
+        if (not self.query): return error_function("youtube_search")
+        webbrowser.open("https://www.youtube.com/results?search_query="+self.query , new=0, autoraise=True)
+    
+    def google_search(self):
+        if (not self.query): return error_function("google_search")
+        webbrowser.open("https://www.google.com/search?q="+self.query, new=0, autoraise=True)
+        
+    def run_program(self):
+        if (not self.query): return error_function("run_program")
+        
+        with open('executable_programs.json', 'r') as json_file:
+            data = json.load(json_file)
+            
+        program_path = data.get(self.query, None)[0]
+        executable_name = data.get(self.query, None)[1]
+        
+        if (program_path == None or executable_name == None):
+            return error_function("run_program", f"program_path ou executable_name não encontrado (program_path:{program_path} ; executable_name:{executable_name}) ")
+        elif (program_path == "shell"):
+            logging.info("start %s", executable_name)
+            os.system("start "+executable_name)
+        else:
+            logging.info('cd %s && start %s', program_path, executable_name)
+            os.system(f'cd "{program_path}" && start {executable_name}')
+            os.system("cd " + os.getcwd())
+        return "Okay"
+    
+    def get_temperature(self):
+        global process_get_temperature, number_of_process
+        number_of_process += 1
+        process_get_temperature = False # Bloqueia o processo
+        try:
+            create_voice("Buscando")
+            temperature = fetch_current_temperature()
+            logging.info("Temperatura: %s", temperature)
+            if (temperature == "error" or temperature == " "): raise
+            text = f"Está fazendo {temperature} graus celsius"
+            create_voice(text)
+        except Exception as error:
+            error_function("get_temperature", "Error na busca da temperatura", error)
+        finally:
+            process_get_temperature = True # Libera o processo para ser usado
+            number_of_process -= 1
+            return None
 
 process_get_temperature = True # True: Liberado; False: Fechado
-def get_temperature():
-    global process_get_temperature, number_of_process
-    process_get_temperature = False # Bloqueia o processo
+
+def call_command_functions(string):
     try:
-        create_voice("Buscando")
-        temperature = fetch_current_temperature()
-        logging.info("Temperatura: %s", temperature)
-        if (temperature == "error" or temperature == " "): raise
-        text = f"Está fazendo {temperature} graus celsius"
-        create_voice(text)
-    except Exception as e:
-        create_voice("Erro na busca")
-        logging.error("Error na busca da temperatura")
-        logging.error("%s", e)
-    finally:
-        process_get_temperature = True # Libera o processo para ser usado
-        number_of_process -= 1
-        return None
-
-def query_format(string, split_point):
-    query_divided = string.split(split_point)
-    del(query_divided[0])
-    query = ""
-    for item in query_divided:
-        query += item
-    logging.info("Query: %s", query)
-    
-    
-    return query.strip()
-
-def search_for_command(string):
-    string = string.lower()
-    
-    string_divided = string.split(" ")
-    
-    firt_words = ""
-    for word in string_divided: # Junta as "primeiraa palavras". Limite é as 3 primeiras
-        if (string_divided.index(word) == 3):
-            break
-        elif (word in commands):
-            firt_words += word
-            break
-        firt_words += word+" "
-        
-    firt_words = firt_words.strip(" ") # Eliminar espaços desnecessarios   
-    
-    logging.info("Command: %s ; %s", firt_words, firt_words in commands)
-    
-    if (firt_words in commands): call_command_functions(firt_words, string)
-        
-
-
-def call_command_functions(command, string ):
-    try:
-        global number_of_process
         random_confirmation_text = choice(confirmation_text)
         create_voice(random_confirmation_text)
-        if ((command == "pesquisar no youtube")):
-            query = query_format(string, "youtube")
-            if (query == ""): return 
-            youtube_search(query)
-            
-        elif ((command == "pesquisar no google")):
-            query = query_format(string, "google")
-            if (query == ""): return 
-            google_search(query)
-            
-        elif (command == "temperatura de hoje"):
-            if ((process_get_temperature == True) and (number_of_process != 2)):
-                _thread.start_new_thread(get_temperature, ())
-                time.sleep(.5)
-                
-                number_of_process += 1
-            else:
-                create_voice("Aguarde")
-                
-        elif (command == "executar"):
-            program = query_format(string, "executar")
-            result = run_program(program)
-            if (result == None):
-                create_voice("Programa não encontrado")
-                
+        
+        string_separete_result = string_separate(string)
+        query = string_separete_result.query
+        command = string_separete_result.command
+        if (command == None or query == None): return
+        command_functions(command, query)
     except Exception as e:
         logging.error("Erro na call_command_functions")
         logging.error("%s", e)
@@ -137,7 +129,18 @@ def call_command_functions(command, string ):
         time.sleep(0.5)
         return
 
+def create_voice(text):
+    tts = gTTS(text, lang='pt')
+    tts.save('bot.mp3')
+    playsound('bot.mp3')
+    os.remove('bot.mp3')
 
+def quit_program():
+    while  True:
+        if (number_of_process == 0):
+            create_voice("Até mais")
+            quit()
+    
 def listen_to_microphone():
     microfone = sr.Recognizer()
     try:
@@ -155,30 +158,15 @@ def listen_to_microphone():
     except Exception as e :
         logging.error("Error na funcao listen_to_microphone")
         logging.error("%s", e)
-        return None
-
-def create_voice(text):
-    tts = gTTS(text, lang='pt')
-    tts.save('bot.mp3')
-    playsound('bot.mp3')
-    os.remove('bot.mp3')
-
-def quit_program():
-    while  True:
-        if (number_of_process == 0):
-            create_voice("Até mais")
-            quit()
-    
-def listen_to_command():
-    phrase = listen_to_microphone()
-    if (phrase != '' or phrase != None):
-        search_for_command(phrase)
+        return None    
 
 def init():
     create_voice("Estou a disposição")
     while True:
         if keyboard.is_pressed('alt+/'):
-            listen_to_command()
+            phrase = listen_to_microphone()
+            if (phrase != None): call_command_functions(phrase)
+            
         elif  (keyboard.is_pressed('ctrl+alt+c')):
             quit_program()
 
