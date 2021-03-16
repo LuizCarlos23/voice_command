@@ -1,24 +1,26 @@
-import os
+from random import choice
+import json
 import keyboard
+import logging
+import os
 import time
 import _thread
-import json
-import logging
-from random import choice
 
-import speech_recognition as sr
 from gtts import gTTS
 from playsound  import playsound
+import speech_recognition as sr
 import webbrowser
 
 from clima import fetch_current_temperature
 
 confirmation_text = ["Ok", "Beleza", "Certo", "Um instante"]
 number_of_process = 0
+process_get_temperature = True # True: Liberado; False: Fechado
 
-logging.basicConfig(filename='bot.log', format='%(levelname)s: %(message)s', filemode='w', level=logging.DEBUG)
+logging.basicConfig(filename='bot.log', format='%(levelname)s: %(message)s', 
+                    filemode='w', level=logging.DEBUG)
 
-class string_separate:
+class StringSeparate:
     def __init__(self, string):
         string = string.lower()
         self.command = self.command_search(string)
@@ -46,7 +48,7 @@ class string_separate:
         
         return query
     
-class command_functions:
+class CommandFunctions:
     def __init__(self, command, query = None):
         commands = { "pesquisar no youtube": self.youtube_search, 
                     "temperatura de hoje": self.get_temperature, 
@@ -110,18 +112,17 @@ class command_functions:
             number_of_process -= 1
             return None
 
-process_get_temperature = True # True: Liberado; False: Fechado
 
 def call_command_functions(string):
     try:
         random_confirmation_text = choice(confirmation_text)
         create_voice(random_confirmation_text)
         
-        string_separete_result = string_separate(string)
+        string_separete_result = CommandFunctions(string)
         query = string_separete_result.query
         command = string_separete_result.command
         if (command == None or query == None): return
-        command_functions(command, query)
+        CommandFunctions(command, query)
     except Exception as e:
         logging.error("Erro na call_command_functions")
         logging.error("%s", e)
@@ -129,18 +130,21 @@ def call_command_functions(string):
         time.sleep(0.5)
         return
 
+
 def create_voice(text):
     tts = gTTS(text, lang='pt')
     tts.save('bot.mp3')
     playsound('bot.mp3')
     os.remove('bot.mp3')
 
+
 def quit_program():
     while  True:
         if (number_of_process == 0):
             create_voice("Até mais")
             quit()
-    
+
+   
 def listen_to_microphone():
     microfone = sr.Recognizer()
     try:
@@ -159,6 +163,7 @@ def listen_to_microphone():
         logging.error("Error na funcao listen_to_microphone")
         logging.error("%s", e)
         return None    
+
 
 def init():
     create_voice("Estou a disposição")
